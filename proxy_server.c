@@ -1,69 +1,107 @@
 #include "common.h"
+#include <time.h>
+#include <sys/time.h>
 
-static int copy_client(char* server , int port)
-{
-  int    s;
-  char   buf[BUFSIZ];
-  int    rc;
+int count = 0;
 
-  s = client_socket_procedure(server,port);
-  
-  while( (rc=read(s,buf,BUFSIZ)) >0 ) {
-    printf("%s\n",buf);
-   }
-  close(s);
+static int copy_server(int server_port,char* server ,int client_port)
+{  
+  int s1;
+  int s1_a;
+  struct sockaddr_in addr;
+  struct timeval t_val = {0, 1000};
+  int select_ret;
+  socklen_t len = sizeof(addr);
+  char buf[BUFSIZ];
+  char str1[128]={0};  
 
-  int s1, s2;
   fd_set fds, readfds;
-  int maxfd;
+  int accept_list[5];
+  int i, j;
 
-  s1 = client_socket_procedure(server,);
-  s2 = client_socket_procedure(server,port+1);
+  s1 = server_socket_procedure(client_port);
 
+  //********for client variation********
+  int    s;
+  char game_buf[BUFSIZ];
+  //***********************************
+  s = client_socket_procedure(server,server_port);
+  
   FD_ZERO(&readfds);
   FD_SET(s1, &readfds);
-  FD_SET(s2, &readfds);
-
-  if (s1 > s2) {
-    maxfd = s1;
-  } else {
-    maxfd = s2;
-  }
 
   while (1) {
+    read(s,game_buf,BUFSIZ);
+    printf("%s\n",game_buf);
+    
     memcpy(&fds, &readfds, sizeof(fd_set));
-
-    select(maxfd+1, &fds, NULL, NULL, NULL);
-
-    if (FD_ISSET(s1, &fds)) {
-      
-      //      read(s1,buf,BUFSIZ);
-      printf("output is s: %s\n", buf);
+    select_ret = select(s1+1, &fds, NULL, NULL, &t_val);
+    if(select_ret != 0){
+      if(FD_ISSET(s1, &fds)){
+	struct sockaddr_in client;
+	socklen_t len = sizeof(client);
+	int client_sock = accept(s1, (struct sockaddr *)&client, &len);
+	if(client_sock != NULL){
+	  j=0;
+	  while(j < 5 && accept_list[j] != NULL) j++;
+	  if(j != 5){
+	    FD_SET(client_sock, &readfds);
+	    accept_list[j] = client_sock;
+	    printf("accept\n");
+	  }else{
+	    printf("no empty\n");
+	  }
+	}else{
+	  printf("accept error\n");
+	}
+      }
     }
 
-    if (FD_ISSET(s2, &fds)) {
-      //read(s2,buf,BUFSIZ);
-      printf("output is s2: %s\n", buf);
+    /* sprintf(str1,"%d",count); */
+    /* strcpy(buf, str1); */
+    /* printf("count: %s\n", buf); */
+    
+    if(accept_list[0] > 0){
+      //      printf("%d", accept_list[0]);
+      for(i=0 ; i < sizeof(accept_list)/sizeof(int) ; i++){
+      	if(accept_list[i] > 0){
+      	  write(accept_list[i], game_buf, sizeof(game_buf));
+      	}
+      }
     }
-  }
-  close(s1);
-  close(s2);
-  
+    count++;
+    sleep(3);	  
+  }    
+  exit(0);
+  close(s1);    
+  //  close(s2_a);
   return 0;
+  
+  /* if (FD_ISSET(s1_a, &fds)) { */
+  /*   sprintf(str1,"%d",count); */
+  /*   strcpy(buf, str1); */
+  /*   printf("count: %s\n", buf); */
+  /*   write(s1_a, buf, sizeof(buf)); */
+  /*   printf("output is s: %s\n", buf); */
+  /* } */ 
 }
 
 int main(int argc,char *argv[])
 {
-  int port = PORT_NO;
-  if( argc < 2 ) {
-    printf("Usage: %s SERVER FILENAME [PORT]\n",argv[0]);
-    return 1;
-  }
-  if( argc < 3) {
-    port = PORT_NO;
+  int p_id;
+  //  int port = PORT_NO;
+  int server_port;
+  int client_port;
+  
+  if( argc<2 ) {
+    //    port = PORT_NO;
+    return printf("Please input port Number/n");
   } else {
-    port = atoi(argv[2]);
+    server_port = atoi(argv[1]);
+    client_port = atoi(argv[3]);
   }
-  printf("port no. = %d\n", port);
-  return   copy_client(argv[1],port);
+  printf("for server port no. = %d\n", server_port);
+  printf("for client port no. = %d\n", client_port);
+
+  return  copy_server(server_port, argv[2],client_port);
 }

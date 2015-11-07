@@ -7,7 +7,7 @@ static int copy_client(char* server , int port)
   int    rc;
   
   s = client_socket_procedure(server,port);
-  write(s, "connect", sizeof(buf));
+  //  write(s, "connect", sizeof(buf));
   
   while( (rc=read(s,buf,BUFSIZ)) >0 ) {
     printf("%s\n",buf);

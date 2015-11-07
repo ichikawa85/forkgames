@@ -15,7 +15,6 @@ static int copy_server(int port)
   char str1[128]={0};  
 
   s1 = server_socket_procedure(port);
-
   s1_a = accept(s1, (struct sockaddr*)&addr, &len);
     
   /* if(( s2=accept(s1, (struct sockaddr*)&addr, &len))<0) { */

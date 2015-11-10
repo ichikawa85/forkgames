@@ -5,7 +5,7 @@
 int count = 0;
 
 static int copy_server(int port)
-{  
+{
   int s1;
   int s1_a;
   struct sockaddr_in addr;
@@ -31,6 +31,7 @@ static int copy_server(int port)
 
   //  close(s1);    
   //printf("Request from %s\n", inet_ntoa(addr.sin_addr));
+  int pid;
   
   while(1){
     sprintf(str1,"%d",count);
@@ -39,7 +40,26 @@ static int copy_server(int port)
     write(s1_a, buf, sizeof(buf));
     count++;
     sleep(3);
+    if(count == 5){
+      strcpy(buf, "FORK");
+      printf("%s\n", buf);
+      write(s1_a, buf, sizeof(buf));
+      //*********** FORK() *************
+      if( (pid=fork()) <0 ) {
+	perror("fork");
+	return 1;
+      } else if(pid==0) {
+	copy_server(12345);
+	/* sprintf(str1,"%d",count); */
+	/* strcpy(buf, str1); */
+	/* printf("count: %s\n", buf); */
+	/* write(s1_a, buf, sizeof(buf)); */
+	/* count++; */
+	/* sleep(3); */
+      }
+    }
   }
+  
   exit(0);
   close(s1_a);
   return 0;
@@ -47,7 +67,6 @@ static int copy_server(int port)
 
 int main(int argc,char *argv[])
 {
-  int p_id;
   int port = PORT_NO;
   
   if( argc<2 ) {

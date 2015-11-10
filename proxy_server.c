@@ -2,6 +2,8 @@
 #include <time.h>
 #include <sys/time.h>
 
+#define FD_SETSIZE 5
+
 static int copy_server(int server_port,char* server ,int client_port)
 {  
   int s1;
@@ -19,11 +21,12 @@ static int copy_server(int server_port,char* server ,int client_port)
 
   s1 = server_socket_procedure(client_port);
 
-  //********for client variation********
-  int    s;
+  //********for self client variation********
+  int    s[FD_SETSIZE];
   char game_buf[BUFSIZ];
+  int fork_num = 0;
   //***********************************
-  s = client_socket_procedure(server,server_port);
+  s[fork_num++] = client_socket_procedure(server,server_port);
   
   FD_ZERO(&readfds);
   FD_SET(s1, &readfds);
@@ -41,8 +44,8 @@ static int copy_server(int server_port,char* server ,int client_port)
 	int client_sock = accept(s1, (struct sockaddr *)&client, &len);
 	if(client_sock != NULL){
 	  j=0;
-	  while(j < 5 && accept_list[j] != NULL) j++;
-	  if(j != 5){
+	  while(j < FD_SETSIZE && accept_list[j] != NULL) j++;
+	  if(j != FD_SETSIZE){
 	    FD_SET(client_sock, &readfds);
 	    accept_list[j] = client_sock;
 	    printf("accept\n");
@@ -54,43 +57,34 @@ static int copy_server(int server_port,char* server ,int client_port)
 	}
       }
     }
-
-    read(s,game_buf,BUFSIZ);
-    printf("%s\n",game_buf);
     
+    int k=0;
+    //*************  Read from server input  **************
+    for(k=0 ; k<fork_num ; k++){
+      read(s[k],game_buf,BUFSIZ);
+      printf("%s\n",game_buf);
+    }
+
+    //*************  Write game_buf for client  **************
     if(accept_list[0] > 0){
-      //      printf("%d", accept_list[0]);
       for(i=0 ; i < sizeof(accept_list)/sizeof(int) ; i++){
       	if(accept_list[i] > 0){
       	  write(accept_list[i], game_buf, sizeof(game_buf));
       	}
       }
     }
+
+    //**************  Connect new port server when forked it  ********
     if(strcmp("FORK", game_buf) == 0){
-      printf("%s\n", game_buf);
-      /* if(accept_list[1] > 0){ */
-      /* 	write(accept_list[i], game_buf, sizeof(game_buf)); */
-      /* } */
-      if( (pid=fork()) <0 ) {
-	perror("fork");
-	return 1;
-      } else if(pid==0) {
-	copy_server(12345, server, 12346);
-      }
+      sleep(1);
+      s[fork_num++] = client_socket_procedure(server,12345);
+      printf("fork number of server: %d¥n" fork_num);
     } //strcpy
   } //while 
   exit(0);
   close(s1);    
   //  close(s2_a);
   return 0;
-  
-  /* if (FD_ISSET(s1_a, &fds)) { */
-  /*   sprintf(str1,"%d",count); */
-  /*   strcpy(buf, str1); */
-  /*   printf("count: %s\n", buf); */
-  /*   write(s1_a, buf, sizeof(buf)); */
-  /*   printf("output is s: %s\n", buf); */
-  /* } */ 
 }
 
 int main(int argc,char *argv[])

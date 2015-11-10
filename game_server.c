@@ -34,7 +34,7 @@ static int copy_server(int port)
   int pid;
   
   while(1){
-    sprintf(str1,"%d",count);
+    sprintf(str1,"%d from %d",count, port);
     strcpy(buf, str1);
     printf("count: %s\n", buf);
     write(s1_a, buf, sizeof(buf));
@@ -49,13 +49,7 @@ static int copy_server(int port)
 	perror("fork");
 	return 1;
       } else if(pid==0) {
-	copy_server(12345);
-	/* sprintf(str1,"%d",count); */
-	/* strcpy(buf, str1); */
-	/* printf("count: %s\n", buf); */
-	/* write(s1_a, buf, sizeof(buf)); */
-	/* count++; */
-	/* sleep(3); */
+	copy_server(12345); //fork at new port
       }
     }
   }

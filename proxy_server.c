@@ -10,23 +10,29 @@ static int copy_server(int server_port,char* server ,int client_port)
   //  int s1_a;
   //  struct sockaddr_in addr;
   struct timeval t_val = {0, 1000};
-  int select_ret;
+  int select_ret, select_ret_client;
   //socklen_t len = sizeof(addr);
   char buf[BUFSIZ];
   //  char str1[128]={0};  
 
-  fd_set fds, readfds;
+  fd_set fds, readfds, fds_client, readfds_client;
   int accept_list[5];
   int i, j;
 
   s1 = server_socket_procedure(client_port);
 
   //********for self client variation********
-  int    s[FD_SETSIZE];
+  int s[FD_SETSIZE];
   char game_buf[BUFSIZ];
   int fork_num = 0;
   //***********************************
   s[fork_num++] = client_socket_procedure(server,server_port);
+
+  struct list {
+    int sock;
+    char port;
+  };
+  struct list table[5];
   
   FD_ZERO(&readfds);
   FD_SET(s1, &readfds);
@@ -36,50 +42,77 @@ static int copy_server(int server_port,char* server ,int client_port)
   while (1) {
     //*************  MANAGE ACCEPT LIST  *****************
     memcpy(&fds, &readfds, sizeof(fd_set));
-    select_ret = select(s1+1, &fds, NULL, NULL, &t_val);
+    select_ret = select(s1+accept_list[0]+1, &fds, NULL, NULL, &t_val);
     if(select_ret != 0){
       if(FD_ISSET(s1, &fds)){
-	struct sockaddr_in client;
-	socklen_t len = sizeof(client);
-	int client_sock = accept(s1, (struct sockaddr *)&client, &len);
-	if(client_sock != NULL){
-	  j=0;
-	  while(j < FD_SETSIZE && accept_list[j] != NULL) j++;
-	  if(j != FD_SETSIZE){
-	    FD_SET(client_sock, &readfds);
-	    accept_list[j] = client_sock;
-	    printf("accept\n");
-	  }else{
-	    printf("no empty\n");
-	  }
-	}else{
-	  printf("accept error\n");
-	}
+    	struct sockaddr_in client;
+    	socklen_t len = sizeof(client);
+    	int client_sock = accept(s1, (struct sockaddr *)&client, &len);
+    	if(client_sock != NULL){
+    	  j=0;
+    	  while(j < FD_SETSIZE && accept_list[j] != NULL) j++;
+    	  if(j != FD_SETSIZE){
+    	    FD_SET(client_sock, &readfds);
+    	    accept_list[j] = client_sock;
+
+    	    printf("accept\n");
+    	  }else{
+    	    printf("no empty\n");
+    	  }
+    	}else{
+    	  printf("accept error\n");
+    	}
       }
+      /* else if(FD_ISSET(accept_list[0], &fds_client)){ */
+      /* 	read(accept_list[0],buf,BUFSIZ); */
+      /* 	write(s1, buf, sizeof(buf)); */
+      /* 	printf("%s\n",buf); */
+      /* } */
     }
     
     int k=0;
-    //*************  Read from server input  **************
+    /*  Read from server input  (server -> proxy) */
     for(k=0 ; k<fork_num ; k++){
       read(s[k],game_buf,BUFSIZ);
       printf("%s\n",game_buf);
     }
 
-    //*************  Write game_buf for client  **************
+    /*  Write game_buf for client  (proxy -> client) */
     if(accept_list[0] > 0){
       for(i=0 ; i < sizeof(accept_list)/sizeof(int) ; i++){
-      	if(accept_list[i] > 0){
-      	  write(accept_list[i], game_buf, sizeof(game_buf));
-      	}
+	if(accept_list[i] > 0){
+	  //	  if(strncmp(table[i].port, game_buf, 5) == 0){
+	    write(accept_list[i], game_buf, sizeof(game_buf));
+	    //	  } /* strncmp */
+	}
       }
-    }
+    } /* accept_list[0] > 0  */
 
-    //**************  Connect new port server when forked it  ********
+    /* Write for server from client  (client -> proxy -> server) */
+    if(accept_list[0] > 0){
+      FD_SET(accept_list[0], &readfds_client);
+      memcpy(&fds_client, &readfds_client, sizeof(fd_set));
+      select_ret_client = select(accept_list[0]+1, &fds_client, NULL, NULL, &t_val);
+      if(select_ret_client != 0){
+      	printf("in select¥n");
+    	if(FD_ISSET(accept_list[0], &fds_client)){
+    	  read(accept_list[0],buf,BUFSIZ);
+    	  write(s[0], buf, sizeof(buf));
+    	  printf("%s\n",buf);
+    	}else{
+    	  /************************************************/
+    	} /* FD_ISSET(s1, &fds_client) */
+      } /* select_ret != 0 */
+    } /* accept_list[0] > 0  */
+    
+    /*  Connect new port server when forked it  */
     if(strcmp("FORK", game_buf) == 0){
       sleep(1);
       s[fork_num++] = client_socket_procedure(server,12345);
-      printf("fork number of server: %d¥n" fork_num);
-    } //strcpy
+      table[fork_num].sock = s[fork_num++];
+      table[fork_num].port = "12345";
+      //      printf("fork number of server: %d¥n" fork_num);
+    } //strcmp
   } //while 
   exit(0);
   close(s1);    

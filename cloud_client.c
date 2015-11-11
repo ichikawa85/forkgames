@@ -4,22 +4,63 @@ static int copy_client(char* server , int port)
 {
   int    s;
   char   buf[BUFSIZ];
-  int    rc;
+  char str1[128]={0};
+  int key;
+  int select_ret;
+  struct timeval t_val = {0, 1000};
+  fd_set fds, readfds;
   
   s = client_socket_procedure(server,port);
   //  write(s, "connect", sizeof(buf));
   
-  while( (rc=read(s,buf,BUFSIZ)) >0 ) {
-    printf("%s\n",buf);
-   }
+  /* while( (rc=read(s,buf,BUFSIZ)) >0 ) { */
+  /*   printf("%s\n",buf); */
+  /*  } */
+
+  FD_ZERO(&readfds);
+  FD_SET(s, &readfds);
+  
+  while(1){
+    memcpy(&fds, &readfds, sizeof(fd_set));
+    select_ret = select(s+1, &fds, NULL, NULL, &t_val);
+
+    if(select_ret != 0){
+      if(FD_ISSET(s, &fds)){
+	read(s,buf,BUFSIZ);
+	printf("%s\n",buf);
+      }
+    }else{
+      if(kbhit()){
+	key = getch();
+	if(key == 0 || key == 224) key = getch();
+	sprintf(str1,"%d",key);
+	strcpy(buf, str1);
+	printf("Key down %s\n", buf);
+	if(key == 113){ /* when press 'q' game end  */
+	  close(s);  
+	  return 0;
+	}
+	write(s, buf, sizeof(buf));
+	
+      }
+    }
+  }
 
   /* while(1) { */
+  /*   if(kbhit()){ */
+  /*     key = getch(); */
+  /*     if(key == 0 || key == 224)key = getch();     */
+  /*     switch(key){ */
+  /*     case 'a': */
+  /* 	printf("Key down a\n"); */
+  /* 	break; */
+  /*     } */
+  /*   } */
   /*   read(s,buf,BUFSIZ); */
   /*   printf("%s\n",buf); */
   /* } */
 
-  close(s);
-  
+  close(s);  
   return 0;
 }
 

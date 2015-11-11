@@ -15,6 +15,8 @@
 #include <tcpd.h>        /* hosts_access().....                     */ 
 #include <syslog.h>
 
+#include <termios.h>
+
 #define PORT_NO (1235)   /* default port number for INET domain */
 
 int server_socket_procedure(int port);

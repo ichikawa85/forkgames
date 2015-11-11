@@ -30,7 +30,7 @@ static int copy_server(int server_port,char* server ,int client_port)
 
   struct list {
     int sock;
-    char port;
+    char port[BUFSIZ];
   };
   struct list table[5];
   
@@ -54,6 +54,10 @@ static int copy_server(int server_port,char* server ,int client_port)
     	  if(j != FD_SETSIZE){
     	    FD_SET(client_sock, &readfds);
     	    accept_list[j] = client_sock;
+	    /* my addition */
+	    strcpy(table[j].port, "11111");
+	    table[j].sock = accept_list[j];
+	    /********************/
 
     	    printf("accept\n");
     	  }else{
@@ -75,18 +79,31 @@ static int copy_server(int server_port,char* server ,int client_port)
     for(k=0 ; k<fork_num ; k++){
       read(s[k],game_buf,BUFSIZ);
       printf("%s\n",game_buf);
-    }
+      if(accept_list[0] > 0){
+	for(i=0 ; i < sizeof(accept_list)/sizeof(int) ; i++){
+	  if(accept_list[i] > 0){
+	    printf("compare port: %s, buf: %s\n", table[i].port, game_buf);
+	    if(strncmp(table[i].port, game_buf, 5) == 0){
+	      //printf("write in port: %s, sock: %d\n", table[i].port, table[i].sock);
+	      write(table[i].sock, game_buf, sizeof(game_buf));
+	    } /* strncmp */
+	  } /* accept_list[i] > 0*/
+	} /* for */
+      } /* accept_list[0] > 0*/
+    } /* for */   
 
-    /*  Write game_buf for client  (proxy -> client) */
-    if(accept_list[0] > 0){
-      for(i=0 ; i < sizeof(accept_list)/sizeof(int) ; i++){
-	if(accept_list[i] > 0){
-	  //	  if(strncmp(table[i].port, game_buf, 5) == 0){
-	    write(accept_list[i], game_buf, sizeof(game_buf));
-	    //	  } /* strncmp */
-	}
-      }
-    } /* accept_list[0] > 0  */
+    /*  write game_buf for client  (proxy -> client) */
+    /* if(accept_list[0] > 0){ */
+    /*   for(i=0 ; i < sizeof(accept_list)/sizeof(int) ; i++){ */
+    /* 	if(accept_list[i] > 0){ */
+    /* 	  printf("compare port: %s, buf: %s\n", table[i].port, game_buf); */
+    /* 	  if(strncmp(table[i].port, game_buf, 5) == 0){ */
+    /* 	    //printf("write in port: %s, sock: %d\n", table[i].port, table[i].sock); */
+    /* 	    write(table[i].sock, game_buf, sizeof(game_buf)); */
+    /* 	  } /\* strncmp *\/ */
+    /* 	} */
+    /*   } */
+    /* } /\* accept_list[0] > 0  *\/ */
 
     /* Write for server from client  (client -> proxy -> server) */
     if(accept_list[0] > 0){
@@ -100,18 +117,20 @@ static int copy_server(int server_port,char* server ,int client_port)
     	  write(s[0], buf, sizeof(buf));
     	  printf("%s\n",buf);
     	}else{
-    	  /************************************************/
+	  /*****************************************/
     	} /* FD_ISSET(s1, &fds_client) */
       } /* select_ret != 0 */
     } /* accept_list[0] > 0  */
     
     /*  Connect new port server when forked it  */
     if(strcmp("FORK", game_buf) == 0){
-      sleep(1);
-      s[fork_num++] = client_socket_procedure(server,12345);
-      table[fork_num].sock = s[fork_num++];
-      table[fork_num].port = "12345";
-      //      printf("fork number of server: %d¥n" fork_num);
+      sleep(3);
+      s[fork_num] = client_socket_procedure(server,12345);
+      table[fork_num].sock = accept_list[1];
+      strcpy(table[fork_num].port, "12345");
+      printf("table[fork_num].sock: %d¥n", table[fork_num].sock);
+      printf("port: %s¥n", table[fork_num].port);
+      fork_num++;
     } //strcmp
   } //while 
   exit(0);

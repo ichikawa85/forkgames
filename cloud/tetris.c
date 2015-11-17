@@ -5,7 +5,8 @@
 #include <time.h>
 
 int s1;
-int s1_a;
+int accept_list[5];
+
 struct sockaddr_in addr;
 
 socklen_t len = sizeof(addr);
@@ -38,14 +39,14 @@ void my_init_var2(void);
 void my_op_scene(void);
 void my_make_block(void);
 void my_gameover(void);
-void my_get_key(void);
+void my_get_key(char *,int);
 void my_make_field(void);
 void my_make_collision_field(void);
 void my_init_field(void);
 void my_save_field(void);
 void my_freeze_block(void);
-void my_search_line(int);
-void my_draw_field(int);
+void my_search_line(void);
+void my_draw_field(void);
 void my_turn_right(void);
 void my_turn_left(void);
 void my_clear_field(void);
@@ -114,38 +115,60 @@ int turn_point;
 int score;
 int lv;
 
-static int game_server(int port)
+void game_server()
 {
-  s1 = server_socket_procedure(port);
-  s1_a = accept(s1, (struct sockaddr*)&addr, &len);
-  
-  FD_ZERO(&readfds);
-  FD_SET(s1_a, &readfds);
-  
-  tetris(port);
-  
-  exit(0);
-  close(s1_a);
-  return 0;
+  struct sockaddr_in client;
+  socklen_t len = sizeof(client);
+  int client_sock = accept(s1, (struct sockaddr *)&client, &len);
+  if(client_sock != NULL){
+    int j = 0;
+    while(j < FD_SETSIZE && accept_list[j] != NULL) j++;
+    if(j != FD_SETSIZE){
+      FD_SET(client_sock, &readfds);
+      accept_list[j] = client_sock;
+      printf("accept\n");
+    }else{
+      printf("no empty\n");
+    }
+  }else{
+    printf("accept error\n");
+  }
 }
 
 /*メイン*/
 //int main(){
-int tetris(int port){
+int tetris(int socket){
+  if(socket > 0) close(socket);/* when forked game, closed previous socket */
+  
   my_init_var();
   my_init_field();
-  my_draw_field(port);
-  my_op_scene();
+  my_draw_field();
+  //  my_op_scene();
 
+  FD_ZERO(&readfds);
+  FD_SET(s1, &readfds);
+  FD_SET(accept_list[0], &readfds);
+  
   while(1){
+    memcpy(&fds, &readfds, sizeof(fd_set));
+    select_ret = select(s1+accept_list[0]+1, &fds, NULL, NULL, &t_val);
+    if(select_ret != 0){
+      if(FD_ISSET(s1, &fds)){
+	game_server();
+      }
+      if(FD_ISSET(accept_list[0], &fds)){
+	read(accept_list[0],read_buf,BUFSIZ);
+      }
+    }
+
     if(gameover_flag == 0){
       my_make_block();
       my_gameover();
-      my_get_key();	
+      my_get_key(read_buf, accept_list[0]);
       my_make_field();
       my_init_field();
       my_freeze_block();
-      my_draw_field(port);
+      my_draw_field();
       my_clear_field();
       my_timer();
     }
@@ -190,15 +213,15 @@ void my_op_scene(){
 
   printf("TETRIS\n");
   strcpy(buf, "TETRIS\n");
-  write(s1_a, buf, sizeof(buf));
+  write(accept_list[0], buf, sizeof(buf));
   printf("press any key to start");
   strcpy(buf, "press any key to start");
-  write(s1_a, buf, sizeof(buf));
+  write(accept_list[0], buf, sizeof(buf));
   
   /* FD_ZERO(&readfds); */
-  /* FD_SET(s1_a, &readfds); */
+  /* FD_SET(accept_list[0], &readfds); */
   /* memcpy(&fds, &readfds, sizeof(fd_set)); */
-  /* select(s1_a+1, &fds, NULL, NULL, NULL); */
+  /* select(accept_list[0]+1, &fds, NULL, NULL, NULL); */
   
   //  any_key = getch();
   //if(any_key == 0 || any_key == 224)any_key = getch();
@@ -257,92 +280,82 @@ void my_gameover(){
 }
 
 /*キー入力*/
-void my_get_key(){
+void my_get_key(char *key, int sock){
   int pid;
   int x,y;
   int side_flag = 0;
   int fall_flag = 0;	
   
   my_make_collision_field();
-  
-  FD_ZERO(&readfds);
-  FD_SET(s1_a, &readfds);
-  memcpy(&fds, &readfds, sizeof(fd_set));
-  select_ret = select(s1_a+1, &fds, NULL, NULL, &t_val);
-  if(select_ret != 0){
-    if(FD_ISSET(s1_a, &fds)){
-      read(s1_a,read_buf,BUFSIZ);
       
-      switch(atoi(read_buf)){
-      case 'a':
-	for(y=0;y<BLOCK_HEIGHT;y++){
-	  for(x=0;x<BLOCK_WIDTH;x++){
-	    if(block[y][x] != 0){
-	      if(collision_field[fall + y][side + (x - 1)] != 0){
-		side_flag++;
-	      }
-	    }
+  switch(atoi(key)){
+  case 'a':
+    for(y=0;y<BLOCK_HEIGHT;y++){
+      for(x=0;x<BLOCK_WIDTH;x++){
+	if(block[y][x] != 0){
+	  if(collision_field[fall + y][side + (x - 1)] != 0){
+	    side_flag++;
 	  }
 	}
-	if(side_flag == 0){
-	  side--;
-	}
-	break;
-      case 'd':
-	for(y=0;y<BLOCK_HEIGHT;y++){
-	  for(x=0;x<BLOCK_WIDTH;x++){
-	    if(block[y][x] != 0){
-	      if(collision_field[fall + y][side + (x + 1)] != 0){
-		side_flag++;
-	      }
-	    }
-	  }
-	}
-	if(side_flag == 0){
-	  side++;
-	}
-	break;
-      case 's':
-	while(fall_flag == 0){
-	  for(y=0;y<BLOCK_HEIGHT;y++){
-	    for(x=0;x<BLOCK_WIDTH;x++){
-	      if(block[y][x] != 0){
-		if(collision_field[fall + (y + 1)][side + x] != 0){
-		  fall_flag++;
-		}
-	      }
-	    }
-	  }
-	  if(fall_flag == 0){
-	    fall++;
-	  }
-	}
-	break;
-      case 'f': /* fork server */
-	strcpy(buf, "FORK");
-	printf("%s\n", buf);
-	write(s1_a, buf, sizeof(buf));
-	//*********** FORK() *************
-	if( (pid=fork()) <0 ) {
-	  perror("fork");
-	  return 1;
-	} else if(pid==0) {
-	  close(s1_a);
-	  game_server(12345); //fork at new port
-	}
-	break;
-      case 0x48:
-	my_turn_right();
-	break;
-      case 'z':
-	my_turn_left();
-	break;
-      default:
-	break;
       }
     }
+    if(side_flag == 0){
+      side--;
+    }
+    break;
+  case 'd':
+    for(y=0;y<BLOCK_HEIGHT;y++){
+      for(x=0;x<BLOCK_WIDTH;x++){
+	if(block[y][x] != 0){
+	  if(collision_field[fall + y][side + (x + 1)] != 0){
+	    side_flag++;
+	  }
+	}
+      }
+    }
+    if(side_flag == 0){
+      side++;
+    }
+    break;
+  case 's':
+    while(fall_flag == 0){
+      for(y=0;y<BLOCK_HEIGHT;y++){
+	for(x=0;x<BLOCK_WIDTH;x++){
+	  if(block[y][x] != 0){
+	    if(collision_field[fall + (y + 1)][side + x] != 0){
+	      fall_flag++;
+	    }
+	  }
+	}
+      }
+      if(fall_flag == 0){
+	fall++;
+      }
+    }
+    break;
+  case 'f': /* fork game */
+    sprintf(str1,"FORK");
+    strcpy(buf, str1);
+    write(accept_list[0], buf, sizeof(buf));
+    if( (pid=fork()) <0 ) {
+      perror("fork");
+      return 1;
+    } else if(pid==0) {
+      tetris(sock); //fork at new port
+    }
+    break;
+  case 0x48:
+    my_turn_right();
+    break;
+  case 'z':
+    my_turn_left();
+    break;
+  default:
+    break;
   }
 }
+/* } */
+/* } */
 
 
 /*「field」に「block」と「stage」を登録*/
@@ -484,7 +497,7 @@ void my_freeze_block(){
 	}
   if(freeze_flag != 0){
     if(fall_point == fall){
-      my_search_line(111);  /*!!!!!!!!!!!  Need more Fix  !!!!!!!!!!!!!*/
+      my_search_line();
       my_save_field();
       my_init_var2();
     }
@@ -497,7 +510,7 @@ void my_freeze_block(){
 }
 
 /*ブロック消去判定*/
-void my_search_line(int port){
+void my_search_line(){
   int i,j;
   int zero_count = 0;
   int clear_flag = 0;
@@ -533,7 +546,7 @@ void my_search_line(int port){
 	}
       }
     }
-    my_draw_field(port);
+    my_draw_field();
     my_timer();
     
     remain_line_index = 0;
@@ -559,66 +572,66 @@ void my_save_field(){
 /*画面をクリアしてから完成した「field」を表示*/
 /*後半部分スコアボード表示*/
 /*文字コード65(A)以上が来たら文字コードとして「%c」で表示*/
-void my_draw_field(int port){
+void my_draw_field(){
   int i,j;
   system("clear");
   for(i=0;i<FIELD_HEIGHT-2;i++){
     for(j=2;j<14;j++){
       if(field[i][j] == 9){
 	printf("■ ");
-	sprintf(str1,"%d,■ ",port);
+	sprintf(str1,"■ ");
 	strcpy(buf, str1);
-	write(s1_a, buf, sizeof(buf));
+	write(accept_list[0], buf, sizeof(buf));
       }else if(field[i][j] == 1){
 	printf("□ ");
-	sprintf(str1,"%d,□ ",port);
+	sprintf(str1,"□ ");
 	strcpy(buf, str1);
-	write(s1_a, buf, sizeof(buf));
+	write(accept_list[0], buf, sizeof(buf));
       }else if(field[i][j] == 2){
 	printf("■ ");
-	sprintf(str1,"%d,■ ",port);
+	sprintf(str1,"■ ");
 	strcpy(buf, str1);
-	write(s1_a, buf, sizeof(buf));
+	write(accept_list[0], buf, sizeof(buf));
       }else{
 	printf("  ");
-	sprintf(str1,"%d,  ",port);
+	sprintf(str1,"  ");
 	strcpy(buf, str1);
-	write(s1_a, buf, sizeof(buf));
+	write(accept_list[0], buf, sizeof(buf));
       }
     }
     for(j=16;j<21;j++){
       if(field[i][j] >= 65){
 	printf(" %c",field[i][j]);
-	sprintf(str1,"%d, %c",port, field[i][j]);
+	sprintf(str1," %c", field[i][j]);
 	strcpy(buf, str1);
-	write(s1_a, buf, sizeof(buf));
+	write(accept_list[0], buf, sizeof(buf));
       }else if(field[i][j] < 10){
 	printf(" %d",field[i][j]);
-	sprintf(str1,"%d, %d",port, field[i][j]);
+	sprintf(str1," %d", field[i][j]);
 	strcpy(buf, str1);
-	write(s1_a, buf, sizeof(buf));
+	write(accept_list[0], buf, sizeof(buf));
       }else if(field[i][j] == 19){
 	printf("■ ");
-	sprintf(str1,"%d,■ ",port);
+	sprintf(str1,"■ ");
 	strcpy(buf, str1);
-	write(s1_a, buf, sizeof(buf));
+	write(accept_list[0], buf, sizeof(buf));
       }else if(field[i][j] == 11){
 	printf("□ ");
-	sprintf(str1,"%d,□ ",port);
+	sprintf(str1,"□ ");
 	strcpy(buf, str1);
-	write(s1_a, buf, sizeof(buf));
+	write(accept_list[0], buf, sizeof(buf));
       }
       else{
 	printf("  ");
-	sprintf(str1,"%d,  ",port);
+	sprintf(str1,"  ");
 	strcpy(buf, str1);
-	write(s1_a, buf, sizeof(buf));
+	write(accept_list[0], buf, sizeof(buf));
       }
     }
     printf("\n");
-    sprintf(str1,"%d,\n",port);
+    sprintf(str1,"\n");
     strcpy(buf, str1);
-    write(s1_a, buf, sizeof(buf));
+    write(accept_list[0], buf, sizeof(buf));
   }
 }
 
@@ -738,6 +751,9 @@ int main(int argc,char *argv[])
     port = atoi(argv[1]);
   }
   printf("port no. = %d\n", port);
+  s1 = server_socket_procedure(port);
+  
+  tetris(-1);
 
-  return  game_server(port);
+  return 0;
 }

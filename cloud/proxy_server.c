@@ -20,11 +20,8 @@ int split(char *str, const char *delim, char *outlist[]) {
 static int proxy_server(int server_port,char* server ,int client_port)
 {  
   int s1;
-  //  int s1_a;
-  //  struct sockaddr_in addr;
   struct timeval t_val = {0, 1000};
   int select_ret, select_ret_client;
-  //socklen_t len = sizeof(addr);
   char buf[BUFSIZ];
   //  char str1[128]={0};  
 
@@ -41,11 +38,11 @@ static int proxy_server(int server_port,char* server ,int client_port)
   //***********************************
   s[fork_num++] = client_socket_procedure(server,server_port);
 
-  struct list {
-    int sock;
-    char port[BUFSIZ];
+  struct sock_list {
+    int client[5];
+    int server;
   };
-  struct list table[5];
+  struct sock_list table[5];
   
   FD_ZERO(&readfds);
   FD_SET(s1, &readfds);
@@ -68,8 +65,8 @@ static int proxy_server(int server_port,char* server ,int client_port)
     	    FD_SET(client_sock, &readfds);
     	    accept_list[j] = client_sock;
 	    /* my addition */
-	    strcpy(table[j].port, "11111");
-	    table[j].sock = accept_list[j];
+	    table[j].server = s[0];
+	    table[j].client[0] = accept_list[j];
 	    /********************/
     	    printf("accept\n");
     	  }else{
@@ -86,43 +83,31 @@ static int proxy_server(int server_port,char* server ,int client_port)
       /* } */
     }
     
-    int k=0;
-
-    /*  Read from server input  (server -> proxy) */
+    int m, k;
+    
+    /*  Read from server input  (server -> proxy -> client) */
     for(k=0 ; k<fork_num ; k++){
       char *split_list[MAXITEM];
       char a_buf[BUFSIZ];
       char str1[128]={0};
       int cnt;
-      read(s[k],game_buf,BUFSIZ);
-      cnt = split(game_buf, "," , split_list);
-      //      printf("%s",split_list[1]); /* This is received "portno,gamestatus" */
-      if(accept_list[0] > 0){
-	for(i=0 ; i < sizeof(accept_list)/sizeof(int) ; i++){
-	  if(accept_list[i] > 0){
-	    if(strcmp(table[i].port, split_list[0]) == 0){
-	      sprintf(str1,"%s",split_list[1]);
-	      strcpy(a_buf, str1);
-	      write(table[i].sock, a_buf, sizeof(a_buf));
-	    } /* strncmp */
-	  } /* accept_list[i] > 0*/
-	} /* for */
-      } /* accept_list[0] > 0*/
+      read(table[k].server,game_buf,BUFSIZ);
+      for(m = 0 ; m < sizeof(table[k].client)/sizeof(int) ; m++){
+	write(table[k].client[m], game_buf, sizeof(game_buf));	
+      }
+      /* if(accept_list[0] > 0){ */
+      /* 	for(i=0 ; i < sizeof(accept_list)/sizeof(int) ; i++){ */
+      /* 	  if(accept_list[i] > 0){ */
+      /* 	    if(strcmp(table[i].port, split_list[0]) == 0){ */
+      /* 	      sprintf(str1,"%s",split_list[1]); */
+      /* 	      strcpy(a_buf, str1); */
+      /* 	      write(table[i].client, a_buf, sizeof(a_buf)); */
+      /* 	    } /\* strncmp *\/ */
+      /* 	  } /\* accept_list[i] > 0*\/ */
+      /* 	} /\* for *\/ */
+      /* } /\* accept_list[0] > 0*\/ */
     } /* for */   
     
-    /*  write game_buf for client  (proxy -> client) */
-    /* if(accept_list[0] > 0){ */
-    /*   for(i=0 ; i < sizeof(accept_list)/sizeof(int) ; i++){ */
-    /* 	if(accept_list[i] > 0){ */
-    /* 	  printf("compare port: %s, buf: %s\n", table[i].port, game_buf); */
-    /* 	  if(strncmp(table[i].port, game_buf, 5) == 0){ */
-    /* 	    //printf("write in port: %s, sock: %d\n", table[i].port, table[i].sock); */
-    /* 	    write(table[i].sock, game_buf, sizeof(game_buf)); */
-    /* 	  } /\* strncmp *\/ */
-    /* 	} */
-    /*   } */
-    /* } /\* accept_list[0] > 0  *\/ */
-
     /* Write for server from client  (client -> proxy -> server) */
     if(accept_list[0] > 0){
       FD_SET(accept_list[0], &readfds_client);
@@ -141,12 +126,11 @@ static int proxy_server(int server_port,char* server ,int client_port)
     
     /*  Connect new port server when forked it  */
     if(strcmp("FORK", game_buf) == 0){
-      sleep(1);
-      s[fork_num] = client_socket_procedure(server,12345);
-      table[fork_num].sock = accept_list[1];
-      strcpy(table[fork_num].port, "12345");
-      printf("table[fork_num].sock: %d¥n", table[fork_num].sock);
-      printf("port: %s¥n", table[fork_num].port);
+      //      sleep(1);
+      s[fork_num] = client_socket_procedure(server,server_port);
+      table[fork_num].client[1] = accept_list[1];
+      table[fork_num].server = s[fork_num];
+      //strcpy(table[fork_num].port, "12345");
       fork_num++;
     } //strcmp
   } //while 

@@ -16,6 +16,12 @@ static int copy_server(int port)
   char read_buf[BUFSIZ];
   char str1[128]={0};
 
+  /* struct list { */
+  /*   int sock; */
+  /*   char port[BUFSIZ]; */
+  /* }; */
+  /* struct list table[BUFSIZ]; */
+
   int select_ret;
   struct timeval t_val = {0, 1000};
   fd_set fds, readfds;
@@ -61,6 +67,7 @@ static int copy_server(int port)
 	    perror("fork");
 	    return 1;
 	  } else if(pid==0) {
+	    close(s1_a);
 	    copy_server(12345); //fork at new port
 	  }
 	  break;
@@ -70,10 +77,12 @@ static int copy_server(int port)
 	}
       }
     }else{
-      sprintf(str1,"%d: %d",port, count);
-      strcpy(buf, str1);
-      printf("count: %s\n", buf);
-      write(s1_a, buf, sizeof(buf));
+      table.sock = 5;
+      strcpy(table[fork_num].port, "11133");
+      /* sprintf(str1,"%d: %d",port, count); */
+      /* strcpy(buf, str1); */
+      /* printf("count: %s\n", buf); */
+      write(s1_a, reinterpret_cast<char*>(&table), sizeof(buf));
       count++;
       sleep(3);
     }

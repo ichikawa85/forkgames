@@ -135,10 +135,9 @@ void game_server()
   }
 }
 
-/*メイン*/
-//int main(){
+/*TETRIS*/
 int tetris(int socket){
-  if(socket > 0) close(socket);/* when forked game, closed previous socket */
+  if(socket > 0) close(socket); /* when forked game, closed previous socket */
   
   my_init_var();
   my_init_field();
@@ -147,9 +146,9 @@ int tetris(int socket){
 
   FD_ZERO(&readfds);
   FD_SET(s1, &readfds);
-  FD_SET(accept_list[0], &readfds);
   
   while(1){
+    strcpy(read_buf, "");
     memcpy(&fds, &readfds, sizeof(fd_set));
     select_ret = select(s1+accept_list[0]+1, &fds, NULL, NULL, &t_val);
     if(select_ret != 0){
@@ -157,10 +156,10 @@ int tetris(int socket){
 	game_server();
       }
       if(FD_ISSET(accept_list[0], &fds)){
-	read(accept_list[0],read_buf,BUFSIZ);
+      	read(accept_list[0],read_buf,BUFSIZ);
       }
     }
-
+    
     if(gameover_flag == 0){
       my_make_block();
       my_gameover();
@@ -213,18 +212,18 @@ void my_op_scene(){
 
   printf("TETRIS\n");
   strcpy(buf, "TETRIS\n");
-  write(accept_list[0], buf, sizeof(buf));
+  if(accept_list[0]>0)write(accept_list[0], buf, sizeof(buf));
   printf("press any key to start");
   strcpy(buf, "press any key to start");
-  write(accept_list[0], buf, sizeof(buf));
+  if(accept_list[0]>0)write(accept_list[0], buf, sizeof(buf));
   
   /* FD_ZERO(&readfds); */
   /* FD_SET(accept_list[0], &readfds); */
   /* memcpy(&fds, &readfds, sizeof(fd_set)); */
   /* select(accept_list[0]+1, &fds, NULL, NULL, NULL); */
   
-  //  any_key = getch();
-  //if(any_key == 0 || any_key == 224)any_key = getch();
+  any_key = getch();
+  if(any_key == 0 || any_key == 224)any_key = getch();
 }	
 
 /*ブロック生成*/
@@ -336,14 +335,14 @@ void my_get_key(char *key, int sock){
   case 'f': /* fork game */
     sprintf(str1,"FORK");
     strcpy(buf, str1);
-    write(accept_list[0], buf, sizeof(buf));
+    if(accept_list[0]>0)write(accept_list[0], buf, sizeof(buf));
     if( (pid=fork()) <0 ) {
       perror("fork");
       return 1;
     } else if(pid==0) {
       tetris(sock); //fork at new port
     }
-    break;
+    break;    
   case 0x48:
     my_turn_right();
     break;
@@ -574,29 +573,29 @@ void my_save_field(){
 /*文字コード65(A)以上が来たら文字コードとして「%c」で表示*/
 void my_draw_field(){
   int i,j;
-  system("clear");
+  //  system("clear");
   for(i=0;i<FIELD_HEIGHT-2;i++){
     for(j=2;j<14;j++){
       if(field[i][j] == 9){
 	printf("■ ");
 	sprintf(str1,"■ ");
 	strcpy(buf, str1);
-	write(accept_list[0], buf, sizeof(buf));
+	if(accept_list[0]>0)write(accept_list[0], buf, sizeof(buf));
       }else if(field[i][j] == 1){
 	printf("□ ");
 	sprintf(str1,"□ ");
 	strcpy(buf, str1);
-	write(accept_list[0], buf, sizeof(buf));
+	if(accept_list[0]>0)write(accept_list[0], buf, sizeof(buf));
       }else if(field[i][j] == 2){
 	printf("■ ");
 	sprintf(str1,"■ ");
 	strcpy(buf, str1);
-	write(accept_list[0], buf, sizeof(buf));
+	if(accept_list[0]>0)write(accept_list[0], buf, sizeof(buf));
       }else{
 	printf("  ");
 	sprintf(str1,"  ");
 	strcpy(buf, str1);
-	write(accept_list[0], buf, sizeof(buf));
+	if(accept_list[0]>0)write(accept_list[0], buf, sizeof(buf));
       }
     }
     for(j=16;j<21;j++){
@@ -604,34 +603,34 @@ void my_draw_field(){
 	printf(" %c",field[i][j]);
 	sprintf(str1," %c", field[i][j]);
 	strcpy(buf, str1);
-	write(accept_list[0], buf, sizeof(buf));
+	if(accept_list[0]>0)write(accept_list[0], buf, sizeof(buf));
       }else if(field[i][j] < 10){
 	printf(" %d",field[i][j]);
 	sprintf(str1," %d", field[i][j]);
 	strcpy(buf, str1);
-	write(accept_list[0], buf, sizeof(buf));
+	if(accept_list[0]>0)write(accept_list[0], buf, sizeof(buf));
       }else if(field[i][j] == 19){
 	printf("■ ");
 	sprintf(str1,"■ ");
 	strcpy(buf, str1);
-	write(accept_list[0], buf, sizeof(buf));
+	if(accept_list[0]>0)write(accept_list[0], buf, sizeof(buf));
       }else if(field[i][j] == 11){
 	printf("□ ");
 	sprintf(str1,"□ ");
 	strcpy(buf, str1);
-	write(accept_list[0], buf, sizeof(buf));
+	if(accept_list[0]>0)write(accept_list[0], buf, sizeof(buf));
       }
       else{
 	printf("  ");
 	sprintf(str1,"  ");
 	strcpy(buf, str1);
-	write(accept_list[0], buf, sizeof(buf));
+	if(accept_list[0]>0)write(accept_list[0], buf, sizeof(buf));
       }
     }
     printf("\n");
     sprintf(str1,"\n");
     strcpy(buf, str1);
-    write(accept_list[0], buf, sizeof(buf));
+    if(accept_list[0]>0)write(accept_list[0], buf, sizeof(buf));
   }
 }
 

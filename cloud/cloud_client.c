@@ -25,7 +25,6 @@ static int copy_client(char* server , int port)
     select_ret = select(s+1, &fds, NULL, NULL, &t_val);
 
     if(select_ret != 0){
-      system("clear");
       if(FD_ISSET(s, &fds)){
 	read(s,buf,BUFSIZ);
 	printf("%s",buf);

@@ -1,0 +1,8 @@
+# forkgames
+* How to use?
+  If you clone successfully, you should do the following items
+     #+BEGIN_SRC sh
+       $ ./tetris <PORT1>
+       $ ./proxy_server <PORT1> <IPaddress> <PORT2>
+       $ ./cloud_client <PORT2>
+     #+END_SRC

@@ -120,9 +120,9 @@ void game_server()
   struct sockaddr_in client;
   socklen_t len = sizeof(client);
   int client_sock = accept(s1, (struct sockaddr *)&client, &len);
-  if(client_sock != NULL){
+  if(client_sock != 0){
     int j = 0;
-    while(j < FD_SETSIZE && accept_list[j] != NULL) j++;
+    while(j < FD_SETSIZE && accept_list[j] != 0) j++;
     if(j != FD_SETSIZE){
       FD_SET(client_sock, &readfds);
       accept_list[j] = client_sock;
@@ -338,7 +338,7 @@ void my_get_key(char *key, int sock){
     if(accept_list[0]>0)write(accept_list[0], buf, sizeof(buf));
     if( (pid=fork()) <0 ) {
       perror("fork");
-      return 1;
+      exit(0);
     } else if(pid==0) {
       tetris(sock); //fork at new port
     }
@@ -353,9 +353,6 @@ void my_get_key(char *key, int sock){
     break;
   }
 }
-/* } */
-/* } */
-
 
 /*「field」に「block」と「stage」を登録*/
 void my_make_field(){

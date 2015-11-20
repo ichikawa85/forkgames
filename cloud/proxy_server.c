@@ -110,7 +110,7 @@ static int proxy_server(int server_port,char* server ,int client_port)
 
     /*  Connect new port server when forked it  */
     if(strcmp("FORK", game_buf) == 0){
-      sleep(1);
+      //sleep(1);
       s[fork_num] = client_socket_procedure(server,server_port);
       table[fork_num].client[0] = table[0].client[1];
       table[0].client[1] = 0;

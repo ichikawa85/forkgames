@@ -7,3 +7,10 @@
        $ ./proxy_server <PORT1> <IPaddress> <PORT2>
        $ ./cloud_client <PORT2>
      #+END_SRC
+
+* Compile
+     #+BEGIN_SRC sh
+       $ cc -Wall -o tetris tetris.c common.c acl.c -lwrap
+       $ cc -Wall -o proxy_server proxy_server.c common.c acl.c -lwrap
+       $ cc -Wall -o cloud_client cloud_client.c common.c acl.c -lwrap
+     #+END_SRC
